@@ -1,3 +1,4 @@
+import useSettings from '@app/hooks/useSettings';
 import defineMessages from '@app/utils/defineMessages';
 import {
   ArrowUpCircleIcon,
@@ -24,11 +25,12 @@ interface VersionStatusProps {
 
 const VersionStatus = ({ onClick }: VersionStatusProps) => {
   const intl = useIntl();
+  const settings = useSettings();
   const { data } = useSWR<StatusResponse>('/api/v1/status', {
-    refreshInterval: 60 * 1000,
+    refreshInterval: settings.currentSettings.versionCheck ? 60 * 1000 : 0,
   });
 
-  if (!data) {
+  if (!settings.currentSettings.versionCheck || !data) {
     return null;
   }
 

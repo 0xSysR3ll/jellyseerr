@@ -4,6 +4,7 @@ import List from '@app/components/Common/List';
 import LoadingSpinner from '@app/components/Common/LoadingSpinner';
 import PageTitle from '@app/components/Common/PageTitle';
 import Releases from '@app/components/Settings/SettingsAbout/Releases';
+import useSettings from '@app/hooks/useSettings';
 import globalMessages from '@app/i18n/globalMessages';
 import Error from '@app/pages/_error';
 import defineMessages from '@app/utils/defineMessages';
@@ -40,11 +41,14 @@ const messages = defineMessages('components.Settings.SettingsAbout', {
 
 const SettingsAbout = () => {
   const intl = useIntl();
+  const settings = useSettings();
   const { data, error } = useSWR<SettingsAboutResponse>(
     '/api/v1/settings/about'
   );
 
-  const { data: status } = useSWR<StatusResponse>('/api/v1/status');
+  const { data: status } = useSWR<StatusResponse>(
+    settings.currentSettings.versionCheck ? '/api/v1/status' : null
+  );
 
   if (!data && !error) {
     return <LoadingSpinner />;
@@ -102,7 +106,8 @@ const SettingsAbout = () => {
             <code className="truncate">
               {data.version.replace('develop-', '')}
             </code>
-            {status?.commitTag !== 'local' &&
+            {settings.currentSettings.versionCheck &&
+              status?.commitTag !== 'local' &&
               (status?.updateAvailable ? (
                 <a
                   href={
@@ -138,6 +143,11 @@ const SettingsAbout = () => {
                   </Badge>
                 </a>
               ))}
+            {!settings.currentSettings.versionCheck && (
+              <Badge badgeType="primary" className="ml-2">
+                Version checking disabled
+              </Badge>
+            )}
           </List.Item>
           <List.Item title={intl.formatMessage(messages.totalmedia)}>
             {intl.formatNumber(data.totalMediaItems)}

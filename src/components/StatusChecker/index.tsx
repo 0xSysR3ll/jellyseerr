@@ -24,7 +24,7 @@ const StatusChecker = () => {
   const settings = useSettings();
   const { hasPermission } = useUser();
   const { data, error } = useSWR<StatusResponse>('/api/v1/status', {
-    refreshInterval: 60 * 1000,
+    refreshInterval: settings.currentSettings.versionCheck ? 60 * 1000 : 0,
   });
   const [alertDismissed, setAlertDismissed] = useState(false);
 
@@ -33,6 +33,10 @@ const StatusChecker = () => {
       setAlertDismissed(false);
     }
   }, [data?.restartRequired]);
+
+  if (!settings.currentSettings.versionCheck) {
+    return null;
+  }
 
   if (!data && !error) {
     return null;
