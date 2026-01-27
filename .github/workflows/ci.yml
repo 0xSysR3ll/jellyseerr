@@ -168,7 +168,7 @@ jobs:
                 body: `The i18n check failed because translation messages are out of sync.
             This usually happens when you've added or modified translation strings in your code but haven't updated the translation file.
 
-            Please run \`pnpm i18n:extract\` locally, then commit and push the updated \`src/i18n/locale/en.json\` file.`,
+            Please run \`pnpm i18n:extract\` and commit the changes.`,
               });
             }
 
