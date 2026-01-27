@@ -127,23 +127,22 @@ jobs:
         run: pnpm format:check
 
       - name: i18n Check
-        id: i18n-check
-        run: |
-          cp src/i18n/locale/en.json src/i18n/locale/en.json.bak
-          pnpm i18n:extract
-          if ! cmp -s src/i18n/locale/en.json src/i18n/locale/en.json.bak; then
-            echo "i18n messages are out of sync. Please run 'pnpm i18n:extract' and commit the changes."
-            rm src/i18n/locale/en.json.bak
-            exit 1
-          fi
-          rm src/i18n/locale/en.json.bak
-
-      - name: Add label and comment on PR if i18n check failed
-        if: failure() && steps.i18n-check.outcome == 'failure' && github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
+            const { execSync } = require('child_process');
+            const fs = require('fs');
             const labelName = 'i18n-out-of-sync';
+
+            execSync('cp src/i18n/locale/en.json src/i18n/locale/en.json.bak');
+            execSync('pnpm i18n:extract');
+
+            const original = fs.readFileSync('src/i18n/locale/en.json.bak', 'utf8');
+            const extracted = fs.readFileSync('src/i18n/locale/en.json', 'utf8');
+            fs.unlinkSync('src/i18n/locale/en.json.bak');
+
+            const checkFailed = original !== extracted;
 
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
@@ -153,7 +152,7 @@ jobs:
 
             const hasLabel = pr.labels.some(label => label.name === labelName);
 
-            if (!hasLabel) {
+            if (checkFailed && !hasLabel) {
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -170,28 +169,17 @@ jobs:
 
             Please run \`pnpm i18n:extract\` and commit the changes.`,
               });
-            }
-
-      - name: Remove label if i18n check passed
-        if: success() && steps.i18n-check.outcome == 'success' && github.event_name == 'pull_request'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        with:
-          script: |
-            const labelName = 'i18n-out-of-sync';
-
-            const { data: pr } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number,
-            });
-
-            if (pr.labels.some(label => label.name === labelName)) {
+            } else if (!checkFailed && hasLabel) {
               await github.rest.issues.removeLabel({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
                 name: labelName,
               });
+            }
+
+            if (checkFailed) {
+              throw new Error('i18n messages are out of sync. Please run 'pnpm i18n:extract' and commit the changes.');
             }
 
       - name: Build
