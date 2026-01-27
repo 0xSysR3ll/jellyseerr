@@ -140,7 +140,7 @@ jobs:
 
       - name: Add label and comment on PR if i18n check failed
         if: failure() && steps.i18n-check.outcome == 'failure' && github.event_name == 'pull_request'
-        shell: bash
+        shell: sh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
@@ -169,7 +169,7 @@ jobs:
 
       - name: Remove label if i18n check passed
         if: success() && steps.i18n-check.outcome == 'success' && github.event_name == 'pull_request'
-        shell: bash
+        shell: sh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
