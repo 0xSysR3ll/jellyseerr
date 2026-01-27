@@ -89,6 +89,9 @@ jobs:
     name: Lint & Test Build
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: write
     container: node:22.22.0-alpine3.22@sha256:0c49915657c1c77c64c8af4d91d2f13fe96853bbd957993ed00dd592cbecc284
     steps:
       - name: Checkout
@@ -124,6 +127,7 @@ jobs:
         run: pnpm format:check
 
       - name: i18n Check
+        id: i18n-check
         run: |
           cp src/i18n/locale/en.json src/i18n/locale/en.json.bak
           pnpm i18n:extract
@@ -133,6 +137,28 @@ jobs:
             exit 1
           fi
           rm src/i18n/locale/en.json.bak
+
+      - name: Comment on PR if i18n check failed
+        if: failure() && steps.i18n-check.outcome == 'failure' && github.event_name == 'pull_request'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## i18n Messages Out of Sync
+
+            The i18n check failed because translation messages are out of sync. This usually happens when you've added or modified \`defineMessages\` calls in your code but haven't run the extraction command.
+
+            **To fix this:**
+
+            1. Run \`pnpm i18n:extract\` locally
+            2. Commit the updated \`src/i18n/locale/en.json\` file
+            3. Push your changes
+
+            The extraction command scans the codebase for \`defineMessages\` calls and updates the translation files accordingly.`
+            })
 
       - name: Build
         run: pnpm build
