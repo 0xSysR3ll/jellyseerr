@@ -179,7 +179,7 @@ jobs:
             }
 
             if (checkFailed) {
-              throw new Error('i18n messages are out of sync. Please run 'pnpm i18n:extract' and commit the changes.');
+              throw new Error('i18n messages are out of sync. Please run \'pnpm i18n:extract\' and commit the changes.');
             }
 
       - name: Build
