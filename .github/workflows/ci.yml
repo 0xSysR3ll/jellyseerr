@@ -138,18 +138,21 @@ jobs:
           fi
           rm src/i18n/locale/en.json.bak
 
-      - name: Comment on PR if i18n check failed
+      - name: Add label and comment on PR if i18n check failed
         if: failure() && steps.i18n-check.outcome == 'failure' && github.event_name == 'pull_request'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `## i18n Messages Out of Sync
-
-            The i18n check failed because translation messages are out of sync. This usually happens when you've added or modified \`defineMessages\` calls in your code but haven't run the extraction command.
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          retry() { n=0; until "$@"; do n=$((n+1)); [ $n -ge 3 ] && break; echo "retry $n: $*" >&2; sleep 2; done; }
+          # Check if label already exists
+          if ! gh pr view "$NUMBER" -R "$GH_REPO" --json labels --jq '.labels[].name' | grep -q "i18n-out-of-sync"; then
+            # Add label
+            retry gh pr edit "$NUMBER" -R "$GH_REPO" --add-label "i18n-out-of-sync" || true
+            # Comment only on first failure
+            BODY="The i18n check failed because translation messages are out of sync. This usually happens when you've added or modified \`defineMessages\` calls in your code but haven't run the extraction command.
 
             **To fix this:**
 
@@ -157,8 +160,26 @@ jobs:
             2. Commit the updated \`src/i18n/locale/en.json\` file
             3. Push your changes
 
-            The extraction command scans the codebase for \`defineMessages\` calls and updates the translation files accordingly.`
-            })
+            The extraction command scans the codebase for \`defineMessages\` calls and updates the translation files accordingly."
+            retry gh pr comment "$NUMBER" -R "$GH_REPO" -b "$BODY" || true
+          else
+            # Label already exists, just ensure it's still there
+            retry gh pr edit "$NUMBER" -R "$GH_REPO" --add-label "i18n-out-of-sync" || true
+          fi
+
+      - name: Remove label if i18n check passed
+        if: success() && steps.i18n-check.outcome == 'success' && github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          retry() { n=0; until "$@"; do n=$((n+1)); [ $n -ge 3 ] && break; echo "retry $n: $*" >&2; sleep 2; done; }
+          # Remove label if it exists
+          if gh pr view "$NUMBER" -R "$GH_REPO" --json labels --jq '.labels[].name' | grep -q "i18n-out-of-sync"; then
+            retry gh pr edit "$NUMBER" -R "$GH_REPO" --remove-label "i18n-out-of-sync" || true
+          fi
 
       - name: Build
         run: pnpm build
