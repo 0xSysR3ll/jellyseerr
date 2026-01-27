@@ -140,19 +140,33 @@ jobs:
 
       - name: Add label and comment on PR if i18n check failed
         if: failure() && steps.i18n-check.outcome == 'failure' && github.event_name == 'pull_request'
-        shell: sh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          retry() { n=0; until "$@"; do n=$((n+1)); [ $n -ge 3 ] && break; echo "retry $n: $*" >&2; sleep 2; done; }
-          # Check if label already exists
-          if ! gh pr view "$NUMBER" -R "$GH_REPO" --json labels --jq '.labels[].name' | grep -q "i18n-out-of-sync"; then
-            # Add label
-            retry gh pr edit "$NUMBER" -R "$GH_REPO" --add-label "i18n-out-of-sync" || true
-            # Comment only on first failure
-            BODY="The i18n check failed because translation messages are out of sync. This usually happens when you've added or modified \`defineMessages\` calls in your code but haven't run the extraction command.
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        with:
+          script: |
+            const labelName = 'i18n-out-of-sync';
+            
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            
+            const hasLabel = pr.labels.some(label => label.name === labelName);
+            
+            // Add label and comment only on first failure
+            if (!hasLabel) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: [labelName],
+              });
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: `The i18n check failed because translation messages are out of sync. This usually happens when you've added or modified \`defineMessages\` calls in your code but haven't run the extraction command.
 
             **To fix this:**
 
@@ -160,26 +174,31 @@ jobs:
             2. Commit the updated \`src/i18n/locale/en.json\` file
             3. Push your changes
 
-            The extraction command scans the codebase for \`defineMessages\` calls and updates the translation files accordingly."
-            retry gh pr comment "$NUMBER" -R "$GH_REPO" -b "$BODY" || true
-          else
-            # Label already exists, just ensure it's still there
-            retry gh pr edit "$NUMBER" -R "$GH_REPO" --add-label "i18n-out-of-sync" || true
-          fi
+            The extraction command scans the codebase for \`defineMessages\` calls and updates the translation files accordingly.`,
+              });
+            }
 
       - name: Remove label if i18n check passed
         if: success() && steps.i18n-check.outcome == 'success' && github.event_name == 'pull_request'
-        shell: sh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          retry() { n=0; until "$@"; do n=$((n+1)); [ $n -ge 3 ] && break; echo "retry $n: $*" >&2; sleep 2; done; }
-          # Remove label if it exists
-          if gh pr view "$NUMBER" -R "$GH_REPO" --json labels --jq '.labels[].name' | grep -q "i18n-out-of-sync"; then
-            retry gh pr edit "$NUMBER" -R "$GH_REPO" --remove-label "i18n-out-of-sync" || true
-          fi
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        with:
+          script: |
+            const labelName = 'i18n-out-of-sync';
+            
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            
+            if (pr.labels.some(label => label.name === labelName)) {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                name: labelName,
+              });
+            }
 
       - name: Build
         run: pnpm build
