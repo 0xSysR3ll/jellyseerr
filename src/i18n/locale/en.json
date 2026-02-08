@@ -2,7 +2,6 @@
   "component.BlacklistBlock.blacklistdate": "Blacklisted date",
   "component.BlacklistBlock.blacklistedby": "Blacklisted By",
   "component.BlacklistModal.blacklisting": "Blacklisting",
-  "components.AirDateBadge.airedrelative": "Aired {relativeTime}",
   "components.AirDateBadge.airsrelative": "Airing {relativeTime}",
   "components.AppDataWarning.dockerVolumeMissingDescription": "The <code>{appDataPath}</code> volume mount was not configured properly. All data will be cleared when the container is stopped or restarted.",
   "components.Blacklist.blacklistNotFoundError": "<strong>{title}</strong> is not blacklisted.",
