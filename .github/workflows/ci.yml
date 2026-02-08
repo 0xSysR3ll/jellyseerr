@@ -79,10 +79,17 @@
             check_failed=0
             node bin/check-i18n.js || check_failed=$?
             if [ $check_failed -eq 1 ]; then
+              labels_raw=$(gh pr view "$NUMBER" -R "$GH_REPO" --json labels -q '.labels[].name' 2>&1) || true
+              echo "[i18n debug] gh pr view exit code: $?"
+              echo "[i18n debug] raw labels output (one per line):"
+              echo "$labels_raw" | while IFS= read -r l; do echo "[i18n debug]   label: '${l}'"; done
               has_label=0
               while IFS= read -r l; do
+                [ -z "$l" ] && continue
+                echo "[i18n debug] checking label: '${l}'"
                 [ "$l" = "i18n-out-of-sync" ] && has_label=1 && break
-              done < <(gh pr view "$NUMBER" -R "$GH_REPO" --json labels -q '.labels[].name' 2>/dev/null || true)
+              done <<< "$labels_raw"
+              echo "[i18n debug] has_label=${has_label} (1=already has label, 0=will add label)"
               if [ "$has_label" -eq 0 ]; then
                 retry gh pr edit "$NUMBER" -R "$GH_REPO" --add-label "i18n-out-of-sync" || true
               fi
