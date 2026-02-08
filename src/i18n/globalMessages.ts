@@ -68,7 +68,6 @@ const globalMessages = defineMessages('i18n', {
   addToBlacklist: 'Add to Blacklist',
   removefromBlacklist: 'Remove from Blacklist',
   specials: 'Specials',
-  testCICheck: 'This is a test message to verify CI i18n check',
 });
 
 export default globalMessages;
